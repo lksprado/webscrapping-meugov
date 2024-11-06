@@ -71,7 +71,7 @@ with graf_create:
 with graf_update:
     st.subheader("HOW LONG HAVE BEEN UPDATED COMPARED TO 2024-11-05")
     data_referencia = dt.today()
-    df["updated_ago"] = (data_referencia - df["update_date"]).dt.days
+    df["dif"] = (data_referencia - df["update_date"]).dt.days
 
     def categorizar_diferenca(dias):
         if dias <= 1:
@@ -99,9 +99,9 @@ with graf_update:
         "+1 year",
     ]
     # Aplicar a função de categorização
-    df["updated_ago"] = df["updated_ago"].apply(categorizar_diferenca)
+    df["updated_ago"] = df["dif"].apply(categorizar_diferenca)
     df_update = (
-        df[["updated_ago", "updated_ago"]]
+        df[["updated_ago", "dif"]]
         .groupby("updated_ago")
         .agg(sum=("updated_ago", "count"))
         .reset_index()
