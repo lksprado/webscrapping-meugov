@@ -8,15 +8,25 @@ import requests as r
 class Crawler:
     data = None
 
-    def __init__(self, pagesize=200):
+    # DEFINIR QUAL EXTRAÇÃO FAZER MAIN OU PERIOD
+    def __init__(self, which="main", pagesize=200):
         self.pagesize = pagesize
         self.offset = 0
         self.max_retries = 5
-        self.retry_delay = 3
+        self.retry_delay = 5
+        self.base_url = "https://dados.gov.br/api/publico/conjuntos-dados/buscar?"
+        self.periodicidade = 1
+        self.which = which
 
+    # FAZ CONEXÃO
     def connect(self):
-        url = f"https://dados.gov.br/api/publico/conjuntos-dados/buscar?offset={self.offset}&tamanhoPagina={self.pagesize}"
 
+        # MONTA URL CONFORME PARÂMETRO WHICH DA CLASSE
+        url = f"{self.base_url}offset={self.offset}&tamanhoPagina={self.pagesize}"
+        if self.which == "period":
+            url += f"&periodicidade={self.periodicidade}"
+
+        # GARANTE RETENTATIVAS EM CASO DE ERRO OU VAZIO
         for attempt in range(self.max_retries):
             try:
                 print(f"Fetching data from URL: {url}, Attempt: {attempt + 1}")
@@ -42,6 +52,7 @@ class Crawler:
         print("Max retries reached. Skipping this offset.")
         return None
 
+    # OBTEM VARIAVEIS
     def get_result(self):
         result = self.data
         variables = []
@@ -59,12 +70,11 @@ class Crawler:
             maintainer = registro.get("maintainer")
             created_date = registro.get("dataCriacao")
             update_date = registro.get("dataAtualizacao")
-            periodicity = registro.get("conjuntoDadosEdicao", {}).get("periodicidade")
+            periodicidade = registro.get("extras", {})
+            periodicity = periodicidade.get("periodicidade") if periodicidade else None
             file_count = registro.get("quantidadeRecursos")
             download_count = registro.get("quantidadeDownloads")
             followers_count = registro.get("quantidadeSeguidores")
-            is_validated = registro.get("conjuntoDadosValidado")
-            is_updated = registro.get("conjuntoDadosEstaAtualizado")
             description = registro.get("notes")
             url = f"https://dados.gov.br/dados/conjuntos-dados/{name}"
 
@@ -73,38 +83,59 @@ class Crawler:
                     "id": id,
                     "name": name,
                     "title": title,
-                    "tema": theme,
+                    "theme": theme,
                     "organization_id": organization_id,
                     "organization_name": organization_name,
                     "organization_uf": organization_uf,
                     "organization_municipio": organization_municipio,
                     "organization_title": organization_title,
                     "maintainer": maintainer,
+                    "periodicity": (
+                        periodicity.lower()
+                        if isinstance(periodicity, str)
+                        else "indefinida"
+                    ),
                     "created_date": created_date,
                     "update_date": update_date,
-                    "periodicidade": periodicity,
-                    "quantidade_recursos": file_count,
-                    "quantidade_downloads": download_count,
-                    "quantidade_seguidores": followers_count,
-                    "conjunto_validado": is_validated,
-                    "conjunto_atualizado": is_updated,
-                    "descricao": description,
+                    "count_files": file_count,
+                    "count_downloads": download_count,
+                    "count_seguidores": followers_count,
+                    "description": description,
                     "url": url,
                 }
             )
         return pd.DataFrame(variables)
 
+    # DEFINE COMO OS LOOPS ACONTECEM
     def fetch_all_data(self):
         all_data = []
-        while True:
-            data = self.connect()
-            if not data or "registros" not in data or len(data["registros"]) == 0:
-                break
+        if self.which == "main":
+            while True:
+                data = self.connect()
+                if not data or "registros" not in data or len(data["registros"]) == 0:
+                    break
 
-            page_df = self.get_result()
-            all_data.append(page_df)
+                page_df = self.get_result()
+                all_data.append(page_df)
 
-            self.offset += self.pagesize
+                self.offset += self.pagesize
 
-        print("Done")
-        return pd.concat(all_data, ignore_index=True)
+        else:
+            for periodicidade in range(1, 10):
+                self.periodicidade = periodicidade
+                self.offset = 0
+                while True:
+                    data = self.connect()
+                    if (
+                        not data
+                        or "registros" not in data
+                        or len(data["registros"]) == 0
+                    ):
+                        break
+
+                    page_df = self.get_result()
+                    all_data.append(page_df)
+                    self.offset += self.pagesize
+
+        data = pd.concat(all_data, ignore_index=True)
+        return data
