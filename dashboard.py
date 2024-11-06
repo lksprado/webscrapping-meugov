@@ -5,12 +5,18 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+st.set_page_config(page_title="OPEN DATA GOVERNMENT CATALOG", layout="wide")
 
-df = pd.read_csv("data/final_data_2024-11-05.csv", sep=";")
+@st.cache_data
+def read ():
+    df = pd.read_csv("data/final_data_2024-11-05.csv", sep=";")
+    return df
+
+df = read()
 
 print(df.columns)
 
-st.set_page_config(page_title="OPEN DATA GOVERNMENT CATALOG", layout="wide")
+
 st.header("OPEN DATA GOVERNMENT CATALOG")
 st.markdown("Analysis of **over 10.000 datasets** scrapped from dadosabertos.gov.br")
 st.divider()
@@ -19,7 +25,7 @@ bn_datasets, bn_institutes, bn_files, bn_downloads, bn_followers = st.columns(5)
 
 with bn_datasets:
     datasets = f"{df["id"].nunique():,}"
-    st.metric("Bundle", datasets)
+    st.metric("Datasets", datasets)
 
 with bn_institutes:
     institutes = df["organization_id"].nunique()
@@ -34,8 +40,7 @@ with bn_downloads:
     st.metric("Downloads", downloads)
 
 with bn_followers:
-    followers = df["count_followers"].sum()
-    followers = locale.format_string("%d", followers, grouping=True)
+    followers = f"{df["count_followers"].sum():,}"
     st.metric("Followers", followers)
 
 st.divider()
@@ -46,7 +51,7 @@ df["update_date"] = pd.to_datetime(df["update_date"], format="%d/%m/%Y %H:%M:%S"
 graf_create, graf_update, graf_themes = st.columns(3, gap="medium")
 
 with graf_create:
-    st.subheader("DATASET CREATIONS OVER TIME")
+    st.subheader("DATASETS CREATIONS OVER TIME")
     df_bar = (
         df.groupby(df["created_date"].dt.to_period("Q"))
         .agg(contagem_id=("id", "count"))
@@ -138,7 +143,7 @@ with graf_update:
     st.altair_chart(bar_chart, use_container_width=True)
 
 with graf_themes:
-    st.subheader("THEMES")
+    st.subheader("DATASETS PER THEME")
     df_themes = df.groupby(df["theme"]).agg(contagem_id=("id", "count")).reset_index()
     bar_chart2 = (
         alt.Chart(df_themes)
@@ -178,7 +183,7 @@ institutions, institutions_pop, map = st.columns(3)
 
 
 with institutions:
-    st.subheader("TOP 10 INSTITUTIONS WITH THE MOST DATASETS")
+    st.subheader("TOP 10 INSTITUTIONS BY DATASETS")
     df_institutions = (
         df.groupby(df["organization_title"])
         .agg(contagem_id=("id", "count"))
@@ -222,7 +227,7 @@ with institutions:
     st.altair_chart(bar_chart3, use_container_width=True)
 
 with institutions_pop:
-    st.subheader("TOP 10 INSTITUTIONS WITH MOST DOWLOADS")
+    st.subheader("TOP 10 ORGANIZATIONS BY DOWNLOADS")
     df_institutions_pop = (
         df.groupby(df["organization_title"])
         .agg(sum=("count_downloads", "sum"))
@@ -267,7 +272,7 @@ with institutions_pop:
     st.altair_chart(bar_chart4, use_container_width=True)
 
 with map:
-    st.subheader("LOCATIONS")
+    st.subheader("ORGANIZATION LOCATIONS")
     df_map = df.dropna(axis="index", how="all", subset=["LATITUDE"])
     st.map(
         data=df_map,
@@ -281,6 +286,7 @@ with map:
         height=None,
     )
 
+st.subheader("TOP DATASETS DETAILS")
 tab1, tab2, tab3 = st.tabs(
     ["Most downloaded", "Most followers", "Highest download rate per user"]
 )
@@ -315,7 +321,7 @@ default_thm = theme_options.index('all')
 default_org = organization_options.index('all')
 
 st.subheader("FULL DATASET SEARCH")
-sel1, sel2, sel3 = st.columns(3) 
+sel1, sel2, sel3,sel4,sel5 = st.columns(5) 
 with sel1:
     filtro_categoria = st.selectbox('Updated ago', updated_ago_options, index=default_cat)
     
@@ -323,9 +329,11 @@ with sel2:
     filtro_theme = st.selectbox('Theme', theme_options, index= default_thm)
 
 with sel3:
-    filtro_organization = st.selectbox('Institution', organization_options, index=default_org)
-
-
+    filtro_organization = st.selectbox('Organization', organization_options, index=default_org)
+with sel4:
+    st.empty()
+with sel5:
+    st.empty()
 
 if filtro_categoria != 'all':
     df_filtrado = df[df['updated_ago'] == filtro_categoria]
