@@ -5,7 +5,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="OPEN DATA GOVERNMENT CATALOG", layout="wide")
+st.set_page_config(page_title="OPEN DATA CATALOG", layout="wide", page_icon='🇧🇷')
 
 @st.cache_data
 def read ():
@@ -14,22 +14,24 @@ def read ():
 
 df = read()
 
-print(df.columns)
+st.header(" BRAZIL'S OPEN DATA GOVERNMENT CATALOG",)
+st.markdown("Analysis of **over 10K datasets** scrapped from Brazil's Open Data -  dadosabertos.gov.br ")
 
-
-st.header("OPEN DATA GOVERNMENT CATALOG")
-st.markdown("Analysis of **over 10.000 datasets** scrapped from dadosabertos.gov.br")
-st.divider()
+i,e = st.columns([1,9])
+with i:
+    st.info('Data extraction in 2024/11/05', icon="ℹ️")
+with e:
+    st.empty()
 
 bn_datasets, bn_institutes, bn_files, bn_downloads, bn_followers = st.columns(5)
 
 with bn_datasets:
-    datasets = f"{df["id"].nunique():,}"
+    datasets = f"{df["id"].count():,}"
     st.metric("Datasets", datasets)
 
 with bn_institutes:
     institutes = df["organization_id"].nunique()
-    st.metric("Institutions", institutes)
+    st.metric("Organizations", institutes)
 
 with bn_files:
     files = f"{df["count_files"].sum():,}"
@@ -51,7 +53,8 @@ df["update_date"] = pd.to_datetime(df["update_date"], format="%d/%m/%Y %H:%M:%S"
 graf_create, graf_update, graf_themes = st.columns(3, gap="medium")
 
 with graf_create:
-    st.subheader("DATASETS CREATIONS OVER TIME")
+    st.subheader("DATASET CREATION BY QUARTER")
+    st.write("There is a significant and sustained increase starting in 2020 suggesting a greater data availability")
     df_bar = (
         df.groupby(df["created_date"].dt.to_period("Q"))
         .agg(contagem_id=("id", "count"))
@@ -74,8 +77,9 @@ with graf_create:
     st.altair_chart(bar_chart, use_container_width=True)
 
 with graf_update:
-    st.subheader("HOW LONG HAVE BEEN UPDATED COMPARED TO 2024-11-05")
-    data_referencia = dt.today()
+    st.subheader("UPDATES RELATIVE TO 2024-11-05")
+    st.write("Although some datasets have periodicity tags, many do not reflect their actual update frequency")
+    data_referencia = pd.to_datetime("2024-11-05")
     df["dif"] = (data_referencia - df["update_date"]).dt.days
 
     def categorizar_diferenca(dias):
@@ -143,7 +147,8 @@ with graf_update:
     st.altair_chart(bar_chart, use_container_width=True)
 
 with graf_themes:
-    st.subheader("DATASETS PER THEME")
+    st.subheader("DATASETS BY THEME")
+    st.write("Despite the broad range of available options, only a few datasets have been properly categorized by theme")
     df_themes = df.groupby(df["theme"]).agg(contagem_id=("id", "count")).reset_index()
     bar_chart2 = (
         alt.Chart(df_themes)
@@ -286,7 +291,7 @@ with map:
         height=None,
     )
 
-st.subheader("TOP DATASETS DETAILS")
+st.subheader("TOP 10 DATASETS & DETAILS")
 tab1, tab2, tab3 = st.tabs(
     ["Most downloaded", "Most followers", "Highest download rate per user"]
 )
@@ -312,9 +317,9 @@ with tab3:
     dftop = dftop[["title",'theme','organization_title',"update_date", "dw/users", 'count_files',"url"]]
     st.dataframe(dftop, hide_index=True, width=3000)
 
-updated_ago_options = list(df['updated_ago'].dropna().unique()) + ['all']
-theme_options = list(df['theme'].dropna().unique()) + ['all']
-organization_options = list(df['organization_title'].dropna().unique()) + ['all']
+updated_ago_options = ['all'] + sorted(list(df['updated_ago'].dropna().unique()))
+theme_options = ['all'] + sorted(list(df['theme'].dropna().unique()))
+organization_options = ['all'] + sorted(list(df['organization_title'].dropna().unique()))
 
 default_cat = updated_ago_options.index('all')
 default_thm = theme_options.index('all')
@@ -323,7 +328,7 @@ default_org = organization_options.index('all')
 st.subheader("FULL DATASET SEARCH")
 sel1, sel2, sel3,sel4,sel5 = st.columns(5) 
 with sel1:
-    filtro_categoria = st.selectbox('Updated ago', updated_ago_options, index=default_cat)
+    filtro_categoria = st.selectbox('Updated relative to 2024-11-05', updated_ago_options, index=default_cat)
     
 with sel2:
     filtro_theme = st.selectbox('Theme', theme_options, index= default_thm)
@@ -332,22 +337,20 @@ with sel3:
     filtro_organization = st.selectbox('Organization', organization_options, index=default_org)
 with sel4:
     st.empty()
+
+df_filtrado = df
+
+if filtro_categoria != 'all':
+    df_filtrado = df_filtrado[df_filtrado['updated_ago'] == filtro_categoria]
+    
+if filtro_theme != 'all':
+    df_filtrado = df_filtrado[df_filtrado['theme'] == filtro_theme]
+    
+if filtro_organization != 'all':
+    df_filtrado = df_filtrado[df_filtrado['organization_name'] == filtro_organization]
+
+cnt = f"{len(df_filtrado):,}"
 with sel5:
-    st.empty()
-
-if filtro_categoria != 'all':
-    df_filtrado = df[df['updated_ago'] == filtro_categoria]
-else:
-    df_filtrado = df
-if filtro_categoria != 'all':
-    df_filtrado = df[df['updated_ago'] == filtro_theme]
-else:
-    df_filtrado = df
-if filtro_categoria != 'all':
-    df_filtrado = df[df['updated_ago'] == filtro_organization]
-else:
-    df_filtrado = df
-
-
+    st.metric("Total selected", cnt)
 df_filtrado = df_filtrado[['title','organization_title','theme','periodicity','created_date','update_date','count_downloads','description','url','updated_ago']]
 st.dataframe(df_filtrado, width=3000, hide_index=True)
