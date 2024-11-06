@@ -1,12 +1,10 @@
 import locale
-import time
 from datetime import datetime as dt
 
 import altair as alt
 import pandas as pd
 import streamlit as st
 
-locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
 
 df = pd.read_csv("data/final_data_2024-11-05.csv", sep=";")
 
