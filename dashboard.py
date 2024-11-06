@@ -99,10 +99,10 @@ with graf_update:
         "+1 year",
     ]
     # Aplicar a função de categorização
-    df["categoria"] = df["updated_ago"].apply(categorizar_diferenca)
+    df["updated_ago"] = df["updated_ago"].apply(categorizar_diferenca)
     df_update = (
-        df[["categoria", "updated_ago"]]
-        .groupby("categoria")
+        df[["updated_ago", "updated_ago"]]
+        .groupby("updated_ago")
         .agg(sum=("updated_ago", "count"))
         .reset_index()
     )
@@ -114,7 +114,7 @@ with graf_update:
                 "sum:Q", title=None, axis=None
             ),  # Eixo x representa a contagem de registros
             y=alt.Y(
-                "categoria:N",
+                "updated_ago:N",
                 sort=order,
                 title=None,
                 axis=alt.Axis(labelAlign="left", labelPadding=70),
@@ -306,14 +306,40 @@ with tab3:
     dftop = dftop[["title",'theme','organization_title',"update_date", "dw/users", 'count_files',"url"]]
     st.dataframe(dftop, hide_index=True, width=3000)
 
-periodicity_options = list(df['categoria'].dropna().unique())
-periodicity_options.append('all')
+updated_ago_options = list(df['updated_ago'].dropna().unique()) + ['all']
+theme_options = list(df['theme'].dropna().unique()) + ['all']
+organization_options = list(df['organization_title'].dropna().unique()) + ['all']
 
-filtro = st.selectbox('Relative update',periodicity_options)
-if filtro != 'all':
-    df_filtrado = df[df['categoria'] == filtro]
+default_cat = updated_ago_options.index('all')
+default_thm = theme_options.index('all')
+default_org = organization_options.index('all')
+
+st.subheader("FULL DATASET SEARCH")
+sel1, sel2, sel3 = st.columns(3) 
+with sel1:
+    filtro_categoria = st.selectbox('Updated ago', updated_ago_options, index=default_cat)
+    
+with sel2:
+    filtro_theme = st.selectbox('Theme', theme_options, index= default_thm)
+
+with sel3:
+    filtro_organization = st.selectbox('Institution', organization_options, index=default_org)
+
+
+
+if filtro_categoria != 'all':
+    df_filtrado = df[df['updated_ago'] == filtro_categoria]
 else:
-    df_filtrado = df 
+    df_filtrado = df
+if filtro_categoria != 'all':
+    df_filtrado = df[df['updated_ago'] == filtro_theme]
+else:
+    df_filtrado = df
+if filtro_categoria != 'all':
+    df_filtrado = df[df['updated_ago'] == filtro_organization]
+else:
+    df_filtrado = df
 
-df_filtrado = df_filtrado[['title','organization_title','theme','periodicity','created_date','update_date','count_downloads','description','url','categoria']]
+
+df_filtrado = df_filtrado[['title','organization_title','theme','periodicity','created_date','update_date','count_downloads','description','url','updated_ago']]
 st.dataframe(df_filtrado, width=3000, hide_index=True)
